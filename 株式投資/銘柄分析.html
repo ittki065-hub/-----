@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>投資日記 & 銘柄ダッシュボード</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        header {
+            background-color: #1e293b;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        /* タブナビゲーション (4つに拡張) */
+        .tab-bar {
+            display: flex;
+            background-color: #0f172a;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 4px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+            background-color: #1e293b;
+        }
+        .tab-content {
+            display: none;
+            padding: 15px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        .card h3 {
+            margin-top: 0;
+            font-size: 15px;
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        label {
+            font-size: 12px;
+            color: #64748b;
+            display: block;
+            margin-top: 8px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn-submit {
+            width: 100%;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-submit:active { background-color: #1d4ed8; }
+        
+        /* 履歴・銘柄カード共通 */
+        .item-card {
+            background: white;
+            border-left: 4px solid #2563eb;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .item-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin: 4px 0;
+            color: #0f172a;
+        }
+        /* 外部サイトへのリンクボタン群 */
+        .link-group {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .link-btn {
+            flex: 1;
+            text-align: center;
+            padding: 6px 2px;
+            font-size: 11px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 4px;
+            color: white;
+        }
+        .btn-kabutan { background-color: #0284c7; }
+        .btn-shikiho { background-color: #059669; }
+        .btn-irbank   { background-color: #d97706; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .summary-box {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .summary-box .val {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>📈 My 投資ダイアリー</header>
+
+    <!-- タブボタン -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tab-diary')">📝 日記</button>
+        <button class="tab-btn" onclick="switchTab('tab-portfolio')">📊 資産</button>
+        <button class="tab-btn" onclick="switchTab('tab-analysis')">🔍 銘柄分析</button>
+        <button class="tab-btn" onclick="switchTab('tab-chart')">📈 チャート</button>
+    </div>
+
+    <!-- 1. 取引日記タブ -->
+    <div id="tab-diary" class="tab-content active">
+        <div class="card">
+            <h3>取引・メモの記録</h3>
+            <label>日付</label>
+            <input type="date" id="input-date">
+            <label>銘柄 (コード / 名称)</label>
+            <input type="text" id="input-stock" placeholder="例: 7203 トヨタ自動車">
+            <label>種別</label>
+            <select id="input-type">
+                <option value="buy">買付</option>
+                <option value="sell">売却</option>
+                <option value="memo">観察メモ</option>
+            </select>
+            <label>金額 (円)</label>
+            <input type="number" id="input-price" placeholder="例: 250000">
+            <label>理由・気づきメモ</label>
+            <textarea id="input-memo" rows="2" placeholder="配当利回りや購入理由など..."></textarea>
+            <button class="btn-submit" onclick="addLog()">記録を保存</button>
+        </div>
+        <div id="log-list"></div>
+    </div>
+
+    <!-- 2. ポートフォリオタブ -->
+    <div id="tab-portfolio" class="tab-content">
+        <div class="summary-grid">
+            <div class="summary-box">
+                <div style="font-size: 11px; color:#64748b;">総投資額</div>
+                <div class="val" id="total-invest">¥0</div>
+            </div>
+            <div class="summary-box">
+                <div style="font-size: 11px; color:#64748b;">年間予想配当</div>
+                <div class="val" style="color:#16a34a;" id="total-dividend">¥0</div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>保有・監視銘柄の状況</h3>
+            <div id="portfolio-list"></div>
+        </div>
+    </div>
+
+    <!-- 3. 銘柄分析ダッシュボードタブ (新機能！) -->
+    <div id="tab-analysis" class="tab-content">
+        <div class="card">
+            <h3>監視銘柄の登録 ＆ 分析ハブ</h3>
+            <label>4桁の銘柄コード</label>
+            <input type="text" id="analysis-code" placeholder="例: 7203">
+            <label>銘柄名・メモ</label>
+            <input type="text" id="analysis-name" placeholder="例: トヨタ自動車 (自動車大手)">
+            <button class="btn-submit" style="background-color: #059669;" onclick="addAnalysisStock()">分析リストに追加</button>
+        </div>
+        <div id="analysis-list"></div>
+    </div>
+
+    <!-- 4. チャートタブ -->
+    <div id="tab-chart" class="tab-content">
+        <div class="card">
+            <h3>リアルタイムチャート</h3>
+            <label>銘柄コード (日本株は 7203 など)</label>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <input type="text" id="chart-symbol" value="7203" placeholder="7203">
+                <button style="background:#0f172a; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold;" onclick="updateChart()">表示</button>
+            </div>
+        </div>
+        <div class="card" style="padding: 5px;">
+            <div id="tradingview_chart" style="height: 350px;"></div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script>
+        let logs = JSON.parse(localStorage.getItem('my_invest_logs')) || [];
+        let analysisStocks = JSON.parse(localStorage.getItem('my_analysis_stocks')) || [
+            { id: 1, code: '7203', name: 'トヨタ自動車' },
+            { id: 2, code: '9432', name: '日本電信電話 (NTT)' }
+        ];
+
+        document.getElementById('input-date').valueAsDate = new Date();
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (tabId === 'tab-chart') {
+                updateChart();
+            } else if (tabId === 'tab-analysis') {
+                renderAnalysisList();
+            }
+        }
+
+        // ログ機能
+        function addLog() {
+            const date = document.getElementById('input-date').value;
+            const stock = document.getElementById('input-stock').value;
+            const type = document.getElementById('input-type').value;
+            const price = Number(document.getElementById('input-price').value) || 0;
+            const memo = document.getElementById('input-memo').value;
+
+            if (!stock) { alert('銘柄名を入力してください'); return; }
+
+            logs.unshift({ id: Date.now(), date, stock, type, price, memo });
+            saveLogs();
+            renderLogs();
+            updateSummary();
+            document.getElementById('input-stock').value = '';
+            document.getElementById('input-price').value = '';
+            document.getElementById('input-memo').value = '';
+        }
+
+        function saveLogs() { localStorage.setItem('my_invest_logs', JSON.stringify(logs)); }
+        function deleteLog(id) { logs = logs.filter(i => i.id !== id); saveLogs(); renderLogs(); updateSummary(); }
+
+        function renderLogs() {
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+            logs.forEach(item => {
+                const typeText = item.type === 'buy' ? '【買付】' : item.type === 'sell' ? '【売却】' : '【メモ】';
+                const div = document.createElement('div');
+                div.className = `item-card`;
+                div.style.borderLeftColor = item.type === 'sell' ? '#ef4444' : '#2563eb';
+                div.innerHTML = `
+                    <div class="item-header"><span>${item.date}</span><span onclick="deleteLog(${item.id})" style="color:#ef4444; cursor:pointer;">削除</span></div>
+                    <div class="item-title">${typeText} ${item.stock} ${item.price ? '¥' + item.price.toLocaleString() : ''}</div>
+                    ${item.memo ? `<div style="font-size:13px; background:#f8fafc; padding:6px; border-radius:4px; margin-top:6px;">\${item.memo}</div>` : ''}
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function updateSummary() {
+            let total = 0;
+            logs.forEach(i => { if (i.type === 'buy') total += i.price; if (i.type === 'sell') total -= i.price; });
+            document.getElementById('total-invest').innerText = '¥' + total.toLocaleString();
+            document.getElementById('total-dividend').innerText = '¥' + Math.floor(total * 0.035).toLocaleString();
+        }
+
+        // 銘柄分析リスト機能
+        function addAnalysisStock() {
+            const code = document.getElementById('analysis-code').value.trim();
+            const name = document.getElementById('analysis-name').value.trim();
+            if (!code || !name) { alert('銘柄コードと名前を入力してください'); return; }
+
+            analysisStocks.unshift({ id: Date.now(), code, name });
+            localStorage.setItem('my_analysis_stocks', JSON.stringify(analysisStocks));
+            renderAnalysisList();
+            document.getElementById('analysis-code').value = '';
+            document.getElementById('analysis-name').value = '';
+        }
+
+        function deleteAnalysisStock(id) {
+            analysisStocks = analysisStocks.filter(i => i.id !== id);
+            localStorage.setItem('my_analysis_stocks', JSON.stringify(analysisStocks));
+            renderAnalysisList();
+        }
+
+        function renderAnalysisList() {
+            const list = document.getElementById('analysis-list');
+            list.innerHTML = '';
+            analysisStocks.forEach(item => {
+                const code = item.code;
+                const div = document.createElement('div');
+                div.className = 'item-card';
+                div.style.borderLeftColor = '#059669';
+                div.innerHTML = `
+                    <div class="item-header">
+                        <span>コード: ${code}</span>
+                        <span onclick="deleteAnalysisStock(${item.id})" style="color:#ef4444; cursor:pointer;">削除</span>
+                    </div>
+                    <div class="item-title">${item.name}</div>
+                    <div class="link-group">
+                        <a href="https://kabutan.jp/stock/?code=${code}" target="_blank" class="link-btn btn-kabutan">株探</a>
+                        <a href="https://shikiho.toyokeizai.net/stocks/${code}" target="_blank" class="link-btn btn-shikiho">四季報</a>
+                        <a href="https://irbank.net/${code}" target="_blank" class="link-btn btn-irbank">IR BANK</a>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function updateChart() {
+            const symbol = document.getElementById('chart-symbol').value.toUpperCase();
+            new TradingView.widget({
+                "width": "100%", "height": 350, "symbol": symbol,
+                "interval": "D", "timezone": "Asia/Tokyo", "theme": "light",
+                "style": "1", "locale": "ja", "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false, "allow_symbol_change": true,
+                "container_id": "tradingview_chart"
+            });
+        }
+
+        renderLogs();
+        updateSummary();
+        renderAnalysisList();
+    </script>
+</body>
+</html>

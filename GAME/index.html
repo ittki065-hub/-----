@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>〇✕ゲーム</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            text-align: center;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        #status {
+            font-size: 20px;
+            margin-bottom: 25px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 90px);
+            grid-template-rows: repeat(3, 90px);
+            gap: 10px;
+            background-color: #bdc3c7;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .cell {
+            background-color: white;
+            border: none;
+            font-size: 45px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            border-radius: 8px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .cell:active {
+            background-color: #ecf0f1;
+        }
+        .cell.x { color: #e74c3c; }
+        .cell.o { color: #3498db; }
+        #reset-btn {
+            font-size: 16px;
+            padding: 12px 30px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(46, 204, 113, 0.3);
+        }
+        #reset-btn:active {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>〇✕ゲーム</h1>
+    <div id="status">ターン: 〇</div>
+
+    <div class="board" id="board">
+        <button class="cell" data-index="0"></button>
+        <button class="cell" data-index="1"></button>
+        <button class="cell" data-index="2"></button>
+        <button class="cell" data-index="3"></button>
+        <button class="cell" data-index="4"></button>
+        <button class="cell" data-index="5"></button>
+        <button class="cell" data-index="6"></button>
+        <button class="cell" data-index="7"></button>
+        <button class="cell" data-index="8"></button>
+    </div>
+
+    <button id="reset-btn" onclick="resetGame()">リセット</button>
+
+    <script>
+        let board = ["", "", "", "", "", "", "", "", ""];
+        let currentPlayer = "〇";
+        let isGameOver = false;
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        const cells = document.querySelectorAll('.cell');
+
+        cells.forEach(cell => {
+            cell.addEventListener('click', () => {
+                const index = cell.getAttribute('data-index');
+                makeMove(index, cell);
+            });
+        });
+
+        function makeMove(index, cell) {
+            if (board[index] !== "" || isGameOver) return;
+
+            board[index] = currentPlayer;
+            cell.innerText = currentPlayer;
+            cell.classList.add(currentPlayer === "〇" ? "o" : "x");
+
+            let roundWon = false;
+            for (let condition of winningConditions) {
+                let [a, b, c] = condition;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    roundWon = true;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                document.getElementById("status").innerText = `プレイヤー ${currentPlayer} の勝ち！🎉`;
+                isGameOver = true;
+                return;
+            }
+
+            if (!board.includes("")) {
+                document.getElementById("status").innerText = "引き分けです！";
+                isGameOver = true;
+                return;
+            }
+
+            currentPlayer = currentPlayer === "〇" ? "✕" : "〇";
+            document.getElementById("status").innerText = `ターン: ${currentPlayer}`;
+        }
+
+        function resetGame() {
+            board = ["", "", "", "", "", "", "", "", ""];
+            currentPlayer = "〇";
+            isGameOver = false;
+            document.getElementById("status").innerText = `ターン: ${currentPlayer}`;
+            cells.forEach(cell => {
+                cell.innerText = "";
+                cell.classList.remove("x", "o");
+            });
+        }
+    </script>
+</body>
+</html>

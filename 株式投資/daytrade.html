@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日本株デイトレード管理ダッシュボード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+        
+        <!-- ヘッダー -->
+        <header class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-emerald-400">日本株デイトレード管理</h1>
+                <p class="text-xs sm:text-sm text-slate-400">朝の地合いチェック・トレード記録・CSV管理ツール</p>
+            </div>
+            <div id="current-date" class="text-xs sm:text-sm bg-slate-700/60 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300">
+                <!-- 日付表示 -->
+            </div>
+        </header>
+
+        <!-- 1. 本日の地合い総合判定 ＆ 外部確認リンク -->
+        <section class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h2 class="text-base sm:text-lg font-semibold flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    本日の地合いチェック ＆ 総合判定
+                </h2>
+                <!-- 3数値を瞬時に確認するための外部リンクボタン -->
+                <div class="flex gap-2">
+                    <a href="https://finance.yahoo.co.jp/" target="_blank" class="text-xs bg-slate-700 hover:bg-slate-600 text-emerald-300 px-3 py-1.5 rounded-lg border border-slate-600 transition-colors">Yahoo!ファイナンス ↗</a>
+                    <a href="http://sekai-kabuka.com/" target="_blank" class="text-xs bg-slate-700 hover:bg-slate-600 text-blue-300 px-3 py-1.5 rounded-lg border border-slate-600 transition-colors">世界の株価 ↗</a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="bg-slate-900/60 border border-slate-700/80 p-3 rounded-xl">
+                    <label class="text-xs text-slate-400 block mb-1">① CME日経先物</label>
+                    <select id="market-futures" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <option value="good">大幅プラス（+200円超）</option>
+                        <option value="neutral" selected>小幅 / 横ばい</option>
+                        <option value="bad">大幅マイナス（-200円超）</option>
+                    </select>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-700/80 p-3 rounded-xl">
+                    <label class="text-xs text-slate-400 block mb-1">② 米SOX指数</label>
+                    <select id="market-sox" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <option value="good">強い上昇（+1%以上）</option>
+                        <option value="neutral" selected>小動き / 方向感なし</option>
+                        <option value="bad">下落（-1%以上）</option>
+                    </select>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-700/80 p-3 rounded-xl">
+                    <label class="text-xs text-slate-400 block mb-1">③ VIX指数（恐怖度）</label>
+                    <select id="market-vix" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <option value="good" selected>20未満（通常・安心）</option>
+                        <option value="bad">25以上（荒れ相場・警戒）</option>
+                    </select>
+                </div>
+            </div>
+            <div id="market-judgment-box" class="p-4 rounded-xl border text-center font-medium text-sm transition-all bg-emerald-950/30 border-emerald-500/50 text-emerald-300">
+                判定中...
+            </div>
+        </section>
+
+        <!-- 2. 朝のルーティン・チェックリスト -->
+        <section class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-3">
+            <h2 class="text-base sm:text-lg font-semibold">朝の準備チェックリスト</h2>
+            <div class="space-y-2 text-sm">
+                <label class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-900/40 hover:bg-slate-900/70 cursor-pointer border border-slate-700/50 transition-colors">
+                    <input type="checkbox" class="w-4 h-4 rounded text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500">
+                    <span>CME先物・SOX・VIXの3数値をチェックした</span>
+                </label>
+                <label class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-900/40 hover:bg-slate-900/70 cursor-pointer border border-slate-700/50 transition-colors">
+                    <input type="checkbox" class="w-4 h-4 rounded text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500">
+                    <span>監視銘柄（例: 日経レバ1570）のチャート・板を確認した</span>
+                </label>
+                <label class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-900/40 hover:bg-slate-900/70 cursor-pointer border border-slate-700/50 transition-colors">
+                    <input type="checkbox" class="w-4 h-4 rounded text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500">
+                    <span>本日の最大トレード回数（最大3回まで）ルールを確認した</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- 3. トレード記録入力フォーム -->
+        <section class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <h2 id="form-title" class="text-base sm:text-lg font-semibold text-emerald-400">トレード記録の追加</h2>
+            <form id="trade-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <input type="hidden" id="edit-index" value="">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">日付</label>
+                    <input type="date" id="trade-date" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">銘柄名 / コード</label>
+                    <input type="text" id="trade-symbol" placeholder="例: 1570 日経レバ" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">損益額（円）※マイナスは - をつける</label>
+                    <input type="number" id="trade-pl" placeholder="例: 3500 または -1200" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">エントリー根拠・反省メモ</label>
+                    <input type="text" id="trade-memo" placeholder="例: 5分足押し目買い。計画通りの損切り完了。" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="sm:col-span-2 flex gap-2 pt-2">
+                    <button type="submit" id="submit-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg transition-colors">記録を追加する</button>
+                    <button type="button" id="cancel-edit-btn" class="hidden px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium py-2.5 rounded-lg transition-colors">キャンセル</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 4. トレード履歴＆管理リスト -->
+        <section class="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h2 class="text-base sm:text-lg font-semibold">トレード履歴 ＆ 分析</h2>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="exportToCSV()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition-colors">スプレッドシート用CSV出力</button>
+                    <button onclick="clearAllTrades()" class="text-xs text-rose-400 hover:text-rose-300 px-2 py-1">全削除</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 text-center">
+                <div>
+                    <span class="text-xs text-slate-400 block">総トレード数</span>
+                    <span id="stat-total" class="text-lg font-bold">0回</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block">勝率</span>
+                    <span id="stat-winrate" class="text-lg font-bold text-emerald-400">0%</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block">合計損益</span>
+                    <span id="stat-total-pl" class="text-lg font-bold">¥0</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 block">最大利益 / 損失</span>
+                    <span id="stat-max" class="text-xs font-semibold text-slate-300">¥0 / ¥0</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-900/80 text-slate-400 border-b border-slate-700">
+                        <tr>
+                            <th class="p-3">日付</th>
+                            <th class="p-3">銘柄</th>
+                            <th class="p-3">損益</th>
+                            <th class="p-3">メモ</th>
+                            <th class="p-3 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-list" class="divide-y divide-slate-700/50">
+                        <!-- 動的挿入 -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // 日付自動セット
+        document.getElementById('trade-date').valueAsDate = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('ja-JP', options);
+
+        // 地合い判定ロジック
+        function updateMarketJudgment() {
+            const f = document.getElementById('market-futures').value;
+            const s = document.getElementById('market-sox').value;
+            const v = document.getElementById('market-vix').value;
+            const box = document.getElementById('market-judgment-box');
+
+            if (v === 'bad') {
+                box.className = "p-4 rounded-xl border text-center font-medium text-sm transition-all bg-rose-950/40 border-rose-500/60 text-rose-300";
+                box.innerText = "🚨【警戒日】VIXが高水準です。ロング（買い）は極めて慎重にするか、見送りを推奨";
+            } else if (f === 'good' && s === 'good') {
+                box.className = "p-4 rounded-xl border text-center font-medium text-sm transition-all bg-emerald-950/40 border-emerald-500/60 text-emerald-300";
+                box.innerText = "✨【ロング有利】先物・SOXともに強く、通常相場です。順張りの買いを狙いやすい日";
+            } else if (f === 'bad' && s === 'bad') {
+                box.className = "p-4 rounded-xl border text-center font-medium text-sm transition-all bg-amber-950/40 border-amber-500/60 text-amber-300";
+                box.innerText = "⚠️【慎重判断】先物・SOXが下落傾向。買いは深追い禁物、または様子見";
+            } else {
+                box.className = "p-4 rounded-xl border text-center font-medium text-sm transition-all bg-slate-900/60 border-slate-700 text-slate-300";
+                box.innerText = "⚖️【中立相場】方向感が定まりにくいため、板やチャートの形をより厳選してトレード";
+            }
+        }
+
+        ['market-futures', 'market-sox', 'market-vix'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateMarketJudgment);
+        });
+        updateMarketJudgment();
+
+        // ローカルストレージ管理
+        let trades = JSON.parse(localStorage.getItem('daytrades')) || [];
+
+        const form = document.getElementById('trade-form');
+        const tradeList = document.getElementById('trade-list');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const editIndex = document.getElementById('edit-index').value;
+            const trade = {
+                date: document.getElementById('trade-date').value,
+                symbol: document.getElementById('trade-symbol').value,
+                pl: parseFloat(document.getElementById('trade-pl').value),
+                memo: document.getElementById('trade-memo').value
+            };
+
+            if (editIndex === "") {
+                trades.unshift(trade);
+            } else {
+                trades[editIndex] = trade;
+                resetForm();
+            }
+
+            localStorage.setItem('daytrades', JSON.stringify(trades));
+            form.reset();
+            document.getElementById('trade-date').valueAsDate = new Date();
+            renderTrades();
+        });
+
+        function renderTrades() {
+            tradeList.innerHTML = '';
+            let totalPl = 0;
+            let wins = 0;
+            let maxProfit = 0;
+            let maxLoss = 0;
+
+            if (trades.length === 0) {
+                tradeList.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">まだトレード記録がありません</td></tr>`;
+            }
+
+            trades.forEach((t, index) => {
+                totalPl += t.pl;
+                if (t.pl > 0) wins++;
+                if (t.pl > maxProfit) maxProfit = t.pl;
+                if (t.pl < maxLoss) maxLoss = t.pl;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/40 transition-colors border-b border-slate-700/30";
+                const plColor = t.pl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                const plSign = t.pl > 0 ? '+' : '';
+
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-300 whitespace-nowrap">${t.date}</td>
+                    <td class="p-3 font-medium text-slate-200">${t.symbol}</td>
+                    <td class="p-3 font-bold ${plColor}">${plSign}¥${t.pl.toLocaleString()}</td>
+                    <td class="p-3 text-slate-400 truncate max-w-xs">${t.memo || '-'}</td>
+                    <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                        <button onclick="editTrade(${index})" class="text-xs text-blue-400 hover:text-blue-300 bg-blue-950/40 px-2.5 py-1 rounded border border-blue-800/50">編集</button>
+                        <button onclick="deleteTrade(${index})" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 px-2.5 py-1 rounded border border-rose-800/50">削除</button>
+                    </td>
+                `;
+                tradeList.appendChild(tr);
+            });
+
+            const total = trades.length;
+            const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
+            
+            document.getElementById('stat-total').innerText = total + '回';
+            document.getElementById('stat-winrate').innerText = winRate + '%';
+            
+            const plEl = document.getElementById('stat-total-pl');
+            plEl.innerText = (totalPl >= 0 ? '+' : '') + '¥' + totalPl.toLocaleString();
+            plEl.className = "text-lg font-bold " + (totalPl >= 0 ? 'text-emerald-400' : 'text-rose-400');
+
+            document.getElementById('stat-max').innerText = `+¥${maxProfit.toLocaleString()} / ¥${maxLoss.toLocaleString()}`;
+        }
+
+        function editTrade(index) {
+            const t = trades[index];
+            document.getElementById('edit-index').value = index;
+            document.getElementById('trade-date').value = t.date;
+            document.getElementById('trade-symbol').value = t.symbol;
+            document.getElementById('trade-pl').value = t.pl;
+            document.getElementById('trade-memo').value = t.memo;
+            
+            document.getElementById('form-title').innerText = "トレード記録の編集中...";
+            document.getElementById('submit-btn').innerText = "変更を保存する";
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            window.scrollTo({ top: 400, behavior: 'smooth' });
+        }
+
+        document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+
+        function resetForm() {
+            document.getElementById('edit-index').value = "";
+            form.reset();
+            document.getElementById('trade-date').valueAsDate = new Date();
+            document.getElementById('form-title').innerText = "トレード記録の追加";
+            document.getElementById('submit-btn').innerText = "記録を追加する";
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+        }
+
+        function deleteTrade(index) {
+            if (confirm('この記録を削除してもよろしいですか？')) {
+                trades.splice(index, 1);
+                localStorage.setItem('daytrades', JSON.stringify(trades));
+                renderTrades();
+            }
+        }
+
+        function clearAllTrades() {
+            if (confirm('すべてのトレード履歴を削除しますか？')) {
+                trades = [];
+                localStorage.removeItem('daytrades');
+                renderTrades();
+            }
+        }
+
+        function exportToCSV() {
+            if (trades.length === 0) {
+                alert('出力するトレード履歴がありません。');
+                return;
+            }
+            let csv = '\uFEFF日付,銘柄,損益(円),メモ\n';
+            trades.forEach(t => {
+                csv += `"${t.date}","${t.symbol}",${t.pl},"${t.memo || ''}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `daytrade_history_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        renderTrades();
+    </script>
+</body>
+</html>

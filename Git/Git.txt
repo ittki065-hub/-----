@@ -1,0 +1,2 @@
+git config --global user.name "TKI"
+git config --global user.email "ittki065@gmail.com"

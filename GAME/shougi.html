@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>本格将棋 2人対戦アプリ</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 5px;
+            text-align: center;
+        }
+        header {
+            background-color: #78350f;
+            color: white;
+            padding: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+        #status {
+            font-size: 14px;
+            font-weight: bold;
+            color: #78350f;
+            margin-bottom: 6px;
+        }
+        .komadai {
+            background-color: #fef3c7;
+            border: 1px solid #b45309;
+            border-radius: 6px;
+            padding: 4px;
+            margin: 4px auto;
+            max-width: 340px;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .komadai-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #b45309;
+            margin-right: 6px;
+        }
+        .komadai-piece {
+            background: #fff;
+            border: 1px solid #78350f;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .komadai-piece.selected {
+            background-color: #fef08a;
+            box-shadow: 0 0 0 2px #2563eb;
+        }
+        .board-container {
+            display: inline-block;
+            background-color: #d97706;
+            padding: 3px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        table {
+            border-collapse: collapse;
+            background-color: #fde68a;
+        }
+        td {
+            width: 34px;
+            height: 36px;
+            border: 1px solid #b45309;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            padding: 0;
+        }
+        .gote {
+            transform: rotate(180deg);
+            color: #991b1b;
+            display: inline-block;
+        }
+        .sente {
+            color: #1e3a8a;
+            display: inline-block;
+        }
+        td.selected {
+            background-color: #fef08a !important;
+        }
+        td.movable {
+            background-color: #bbf7d0 !important;
+        }
+        .btn-reset {
+            margin-top: 8px;
+            background-color: #b45309;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>将棋 (本格ルール対応)</header>
+    <div id="status">先手（青・下側）の番です</div>
+
+    <!-- 後手の持駒 -->
+    <div class="komadai" id="komadai-gote">
+        <span class="komadai-title">後手持駒:</span>
+    </div>
+
+    <div class="board-container">
+        <table id="shogi-board"></table>
+    </div>
+
+    <!-- 先手の持駒 -->
+    <div class="komadai" id="komadai-sente">
+        <span class="komadai-title">先手持駒:</span>
+    </div>
+
+    <div>
+        <button class="btn-reset" onclick="resetGame()">盤面をリセット</button>
+    </div>
+
+    <script>
+        const NAMES = {
+            1:'歩', 2:'香', 3:'桂', 4:'銀', 5:'金', 6:'角', 7:'飛', 8:'玉',
+            9:'と', 10:'杏', 11:'圭', 12:'全', 13:'馬', 14:'竜',
+            '-1':'歩', '-2':'香', '-3':'桂', '-4':'銀', '-5':'金', '-6':'角', '-7':'飛', '-8':'王',
+            '-9':'と', '-10':'杏', '-11':'圭', '-12':'全', '-13':'馬', '-14':'竜'
+        };
+
+        let board = [
+            [-2, -3, -4, -5, -8, -5, -4, -3, -2],
+            [ 0, -7,  0,  0,  0,  0,  0, -6,  0],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+            [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+            [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+            [ 1,  1,  1,  1,  1,  1,  1,  1,  1],
+            [ 0,  6,  0,  0,  0,  0,  0,  7,  0],
+            [ 2,  3,  4,  5,  8,  5,  4,  3,  2]
+        ];
+
+        let turn = 1; // 1: 先手, -1: 後手
+        let senteKomadai = [];
+        let goteKomadai = [];
+
+        let selected = null; 
+        let movableList = [];
+        let isGameOver = false; // 決着フラグ
+
+        function render() {
+            const table = document.getElementById('shogi-board');
+            table.innerHTML = '';
+            for (let r = 0; r < 9; r++) {
+                const tr = document.createElement('tr');
+                for (let c = 0; c < 9; c++) {
+                    const td = document.createElement('td');
+                    const p = board[r][c];
+                    if (p !== 0) {
+                        const span = document.createElement('span');
+                        span.innerText = NAMES[p] || '?';
+                        span.className = p > 0 ? 'sente' : 'gote';
+                        td.appendChild(span);
+                    }
+                    if (selected && selected.type === 'board' && selected.r === r && selected.c === c) {
+                        td.classList.add('selected');
+                    }
+                    if (movableList.some(m => m.r === r && m.c === c)) {
+                        td.classList.add('movable');
+                    }
+                    td.onclick = () => handleBoardClick(r, c);
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+            }
+
+            renderKomadai('sente', senteKomadai);
+            renderKomadai('gote', goteKomadai);
+
+            if (!isGameOver) {
+                document.getElementById('status').innerText = 
+                    turn === 1 ? '先手（青・下側）の番です' : '後手（赤・上側）の番です';
+            }
+        }
+
+        function renderKomadai(player, list) {
+            const container = document.getElementById(`komadai-${player}`);
+            container.innerHTML = `<span class="komadai-title">${player === 'sente' ? '先手持駒:' : '後手持駒:'}</span>`;
+            
+            const counts = {};
+            list.forEach(p => {
+                const base = Math.abs(p);
+                counts[base] = (counts[base] || 0) + 1;
+            });
+
+            for (const [baseStr, count] of Object.entries(counts)) {
+                const base = parseInt(baseStr);
+                const pieceVal = player === 'sente' ? base : -base;
+                const div = document.createElement('div');
+                div.className = 'komadai-piece';
+                if (selected && selected.type === 'komadai' && selected.player === player && selected.piece === pieceVal) {
+                    div.classList.add('selected');
+                }
+                div.innerText = `${NAMES[pieceVal]}${count > 1 ? count : ''}`;
+                div.onclick = () => handleKomadaiClick(player, pieceVal);
+                container.appendChild(div);
+            }
+        }
+
+        function getMovableSquares(r, c, p) {
+            const moves = [];
+            const color = p > 0 ? 1 : -1;
+            const absP = Math.abs(p);
+
+            function add(nr, nc) {
+                if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+                    const target = board[nr][nc];
+                    if (target * color <= 0) {
+                        moves.push({r: nr, c: nc});
+                    }
+                }
+            }
+
+            function addLine(dr, dc) {
+                let nr = r + dr, nc = c + dc;
+                while (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+                    const target = board[nr][nc];
+                    if (target === 0) {
+                        moves.push({r: nr, c: nc});
+                    } else {
+                        if (target * color < 0) moves.push({r: nr, c: nc});
+                        break;
+                    }
+                    nr += dr; nc += dc;
+                }
+            }
+
+            if (absP === 1) { // 歩
+                add(r - color, c);
+            } else if (absP === 2) { // 香
+                addLine(-color, 0);
+            } else if (absP === 3) { // 桂
+                add(r - color * 2, c - 1);
+                add(r - color * 2, c + 1);
+            } else if (absP === 4) { // 銀
+                add(r - color, c - 1); add(r - color, c); add(r - color, c + 1);
+                add(r + color, c - 1); add(r + color, c + 1);
+            } else if (absP === 5 || (absP >= 9 && absP <= 12)) { // 金・成駒
+                add(r - color, c - 1); add(r - color, c); add(r - color, c + 1);
+                add(r, c - 1); add(r, c + 1);
+                add(r + color, c);
+            } else if (absP === 6) { // 角
+                addLine(-1, -1); addLine(-1, 1); addLine(1, -1); addLine(1, 1);
+            } else if (absP === 13) { // 馬
+                addLine(-1, -1); addLine(-1, 1); addLine(1, -1); addLine(1, 1);
+                add(r - 1, c); add(r + 1, c); add(r, c - 1); add(r, c + 1);
+            } else if (absP === 7) { // 飛
+                addLine(-1, 0); addLine(1, 0); addLine(0, -1); addLine(0, 1);
+            } else if (absP === 14) { // 竜
+                addLine(-1, 0); addLine(1, 0); addLine(0, -1); addLine(0, 1);
+                add(r - 1, c - 1); add(r - 1, c + 1); add(r + 1, c - 1); add(r + 1, c + 1);
+            } else if (absP === 8) { // 王
+                add(r - 1, c - 1); add(r - 1, c); add(r - 1, c + 1);
+                add(r, c - 1);                   add(r, c + 1);
+                add(r + 1, c - 1); add(r + 1, c); add(r + 1, c + 1);
+            }
+            return moves;
+        }
+
+        function getDropSquares(pieceVal) {
+            const moves = [];
+            const absP = Math.abs(pieceVal);
+            const isSente = turn === 1;
+
+            for (let c = 0; c < 9; c++) {
+                let hasPawnInCol = false;
+                if (absP === 1) {
+                    for (let r = 0; r < 9; r++) {
+                        if (board[r][c] === turn) {
+                            hasPawnInCol = true;
+                            break;
+                        }
+                    }
+                }
+
+                for (let r = 0; r < 9; r++) {
+                    if (board[r][c] === 0) {
+                        if (absP === 1 || absP === 2) {
+                            if (isSente && r === 0) continue;
+                            if (!isSente && r === 8) continue;
+                        }
+                        if (absP === 3) {
+                            if (isSente && r <= 1) continue;
+                            if (!isSente && r >= 7) continue;
+                        }
+                        if (absP === 1 && hasPawnInCol) continue;
+
+                        moves.push({r, c});
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function handleBoardClick(r, c) {
+            if (isGameOver) return; // 終局後は操作不可
+
+            const p = board[r][c];
+
+            if (selected && selected.type === 'komadai') {
+                const canDrop = movableList.some(m => m.r === r && m.c === c);
+                if (canDrop) {
+                    board[r][c] = selected.piece;
+                    if (selected.player === 'sente') {
+                        senteKomadai.splice(senteKomadai.indexOf(selected.piece), 1);
+                    } else {
+                        goteKomadai.splice(goteKomadai.indexOf(selected.piece), 1);
+                    }
+                    turn *= -1;
+                    selected = null;
+                    movableList = [];
+                    render();
+                }
+                return;
+            }
+
+            if (!selected) {
+                if (p * turn > 0) {
+                    selected = {type: 'board', r, c};
+                    movableList = getMovableSquares(r, c, p);
+                    render();
+                }
+            } else {
+                if (selected.r === r && selected.c === c) {
+                    selected = null;
+                    movableList = [];
+                    render();
+                    return;
+                }
+
+                const found = movableList.find(m => m.r === r && m.c === c);
+                if (found) {
+                    const target = board[r][c];
+                    
+                    // 王（または玉）を取った場合の即勝利判定
+                    if (Math.abs(target) === 8) {
+                        const winnerText = turn === 1 ? '🎉 先手（青・下側）の勝ちです！' : '🎉 後手（赤・上側）の勝ちです！';
+                        document.getElementById('status').innerText = winnerText;
+                        board[r][c] = board[selected.r][selected.c];
+                        board[selected.r][selected.c] = 0;
+                        isGameOver = true;
+                        selected = null;
+                        movableList = [];
+                        render();
+                        setTimeout(() => alert(winnerText), 100);
+                        return;
+                    }
+
+                    if (target !== 0) {
+                        const targetAbs = Math.abs(target);
+                        let capturedBase = targetAbs;
+                        if (targetAbs >= 9 && targetAbs <= 12) capturedBase = targetAbs - 8;
+                        else if (targetAbs === 13) capturedBase = 6;
+                        else if (targetAbs === 14) capturedBase = 7;
+
+                        if (turn === 1) senteKomadai.push(capturedBase);
+                        else goteKomadai.push(-capturedBase);
+                    }
+
+                    let movingPiece = board[selected.r][selected.c];
+                    const absP = Math.abs(movingPiece);
+
+                    // 成る判定
+                    if (absP >= 1 && absP <= 7 && absP !== 5) {
+                        const inEnemyCamp = (turn === 1 && (r <= 2 || selected.r <= 2)) || (turn === -1 && (r >= 6 || selected.r >= 6));
+                        if (inEnemyCamp) {
+                            const mustPromote = (absP === 1 || absP === 2) && ((turn === 1 && r === 0) || (turn === -1 && r === 8)) ||
+                                                (absP === 3 && ((turn === 1 && r <= 1) || (turn === -1 && r >= 7)));
+
+                            if (mustPromote || confirm('成りますか？')) {
+                                if (absP <= 4) movingPiece += (turn * 8);
+                                else if (absP === 6) movingPiece = (turn * 13);
+                                else if (absP === 7) movingPiece = (turn * 14);
+                            }
+                        }
+                    }
+
+                    board[r][c] = movingPiece;
+                    board[selected.r][selected.c] = 0;
+
+                    turn *= -1;
+                    selected = null;
+                    movableList = [];
+                    render();
+                } else if (p * turn > 0) {
+                    selected = {type: 'board', r, c};
+                    movableList = getMovableSquares(r, c, p);
+                    render();
+                }
+            }
+        }
+
+        function handleKomadaiClick(player, pieceVal) {
+            if (isGameOver) return;
+            if ((player === 'sente' && turn === 1) || (player === 'gote' && turn === -1)) {
+                selected = {type: 'komadai', player, piece: pieceVal};
+                movableList = getDropSquares(pieceVal);
+                render();
+            }
+        }
+
+        function resetGame() {
+            board = [
+                [-2, -3, -4, -5, -8, -5, -4, -3, -2],
+                [ 0, -7,  0,  0,  0,  0,  0, -6,  0],
+                [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+                [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+                [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+                [ 0,  0,  0,  0,  0,  0,  0,  0,  0],
+                [ 1,  1,  1,  1,  1,  1,  1,  1,  1],
+                [ 0,  6,  0,  0,  0,  0,  0,  7,  0],
+                [ 2,  3,  4,  5,  8,  5,  4,  3,  2]
+            ];
+            turn = 1;
+            senteKomadai = [];
+            goteKomadai = [];
+            selected = null;
+            movableList = [];
+            isGameOver = false;
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>

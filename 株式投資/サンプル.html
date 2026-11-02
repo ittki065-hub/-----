@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>投資日記 & ポートフォリオ</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        /* ヘッダー */
+        header {
+            background-color: #1e293b;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        /* タブナビゲーション */
+        .tab-bar {
+            display: flex;
+            background-color: #0f172a;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: 0.2s;
+        }
+        .tab-btn.active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+            background-color: #1e293b;
+        }
+        /* コンテンツ領域 */
+        .tab-content {
+            display: none;
+            padding: 15px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* フォーム & カードスタイル */
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        .card h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #1e293b;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        label {
+            font-size: 12px;
+            color: #64748b;
+            display: block;
+            margin-top: 8px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn-submit {
+            width: 100%;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-submit:active { background-color: #1d4ed8; }
+        
+        /* 履歴リスト */
+        .log-item {
+            background: white;
+            border-left: 4px solid #2563eb;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .log-item.sell { border-left-color: #ef4444; }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .log-title {
+            font-weight: bold;
+            font-size: 15px;
+            margin: 4px 0;
+        }
+        .log-memo {
+            font-size: 13px;
+            color: #334155;
+            background: #f8fafc;
+            padding: 6px;
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+        /* サマリーグリッド */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .summary-box {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .summary-box .val {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>📈 My 投資日記</header>
+
+    <!-- タブボタン -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tab-diary')">📝 取引日記</button>
+        <button class="tab-btn" onclick="switchTab('tab-portfolio')">📊 資産・配当</button>
+        <button class="tab-btn" onclick="switchTab('tab-chart')">📈 チャート分析</button>
+    </div>
+
+    <!-- 1. 取引日記タブ -->
+    <div id="tab-diary" class="tab-content active">
+        <div class="card">
+            <h3>新規日記・取引の記録</h3>
+            <label>日付</label>
+            <input type="date" id="input-date">
+            
+            <label>銘柄コード・銘柄名</label>
+            <input type="text" id="input-stock" placeholder="例: 7203 トヨタ自動車">
+
+            <label>取引種別</label>
+            <select id="input-type">
+                <option value="buy">買付 (Buy)</option>
+                <option value="sell">売却 (Sell)</option>
+                <option value="memo">観察メモ (Memo)</option>
+            </select>
+
+            <label>金額 (円)</label>
+            <input type="number" id="input-price" placeholder="例: 250000">
+
+            <label>売買の理由・気付きメモ</label>
+            <textarea id="input-memo" rows="3" placeholder="配当利回り4%超えのため押し目買い..."></textarea>
+
+            <button class="btn-submit" onclick="addLog()">日記を保存する</button>
+        </div>
+
+        <div id="log-list"></div>
+    </div>
+
+    <!-- 2. ポートフォリオ・資産タブ -->
+    <div id="tab-portfolio" class="tab-content">
+        <div class="summary-grid">
+            <div class="summary-box">
+                <div style="font-size: 11px; color:#64748b;">総投資額</div>
+                <div class="val" id="total-invest">¥0</div>
+            </div>
+            <div class="summary-box">
+                <div style="font-size: 11px; color:#64748b;">予想年間配当</div>
+                <div class="val" style="color:#16a34a;" id="total-dividend">¥0</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>保有銘柄の簡易管理</h3>
+            <p style="font-size: 12px; color:#64748b;">※取引日記に入力した「買付」データを自動集計します。</p>
+            <div id="portfolio-list"></div>
+        </div>
+    </div>
+
+    <!-- 3. チャートタブ -->
+    <div id="tab-chart" class="tab-content">
+        <div class="card">
+            <h3>リアルタイム株価チャート</h3>
+            <label>分析したい銘柄コード (米国株・日本株)</label>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <input type="text" id="chart-symbol" value="AAPL" placeholder="AAPL または 7203">
+                <button style="background:#0f172a; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold;" onclick="updateChart()">表示</button>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 5px;">
+            <div id="tradingview_chart" style="height: 350px;"></div>
+        </div>
+    </div>
+
+    <!-- TradingView チャートライブラリの読み込み -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem('my_invest_logs')) || [];
+
+        // 本日の日付をデフォルト入力
+        document.getElementById('input-date').valueAsDate = new Date();
+
+        // タブ切り替え機能
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (tabId === 'tab-chart') {
+                updateChart();
+            }
+        }
+
+        // ログ追加
+        function addLog() {
+            const date = document.getElementById('input-date').value;
+            const stock = document.getElementById('input-stock').value;
+            const type = document.getElementById('input-type').value;
+            const price = Number(document.getElementById('input-price').value) || 0;
+            const memo = document.getElementById('input-memo').value;
+
+            if (!stock) {
+                alert('銘柄名を入力してください');
+                return;
+            }
+
+            const item = { id: Date.now(), date, stock, type, price, memo };
+            logs.unshift(item);
+            saveData();
+            renderLogs();
+            updateSummary();
+
+            // フォームクリア
+            document.getElementById('input-stock').value = '';
+            document.getElementById('input-price').value = '';
+            document.getElementById('input-memo').value = '';
+        }
+
+        // データ保存 (ブラウザのローカルストレージへ)
+        function saveData() {
+            localStorage.setItem('my_invest_logs', JSON.stringify(logs));
+        }
+
+        // 削除
+        function deleteLog(id) {
+            logs = logs.filter(item => item.id !== id);
+            saveData();
+            renderLogs();
+            updateSummary();
+        }
+
+        // 描画
+        function renderLogs() {
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+
+            logs.forEach(item => {
+                const typeText = item.type === 'buy' ? '【買付】' : item.type === 'sell' ? '【売却】' : '【メモ】';
+                const div = document.createElement('div');
+                div.className = `log-item ${item.type}`;
+                div.innerHTML = `
+                    <div class="log-header">
+                        <span>${item.date}</span>
+                        <span onclick="deleteLog(${item.id})" style="color:#ef4444; cursor:pointer;">削除</span>
+                    </div>
+                    <div class="log-title">${typeText} ${item.stock} ${item.price ? '¥' + item.price.toLocaleString() : ''}</div>
+                    ${item.memo ? `<div class="log-memo">\${item.memo}</div>` : ''}
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // 集計
+        function updateSummary() {
+            let total = 0;
+            logs.forEach(item => {
+                if (item.type === 'buy') total += item.price;
+                if (item.type === 'sell') total -= item.price;
+            });
+            document.getElementById('total-invest').innerText = '¥' + total.toLocaleString();
+            // 仮の想定配当計算 (3.5%と仮定)
+            document.getElementById('total-dividend').innerText = '¥' + Math.floor(total * 0.035).toLocaleString();
+        }
+
+        // チャートの更新
+        function updateChart() {
+            const symbol = document.getElementById('chart-symbol').value.toUpperCase();
+            new TradingView.widget({
+                "width": "100%",
+                "height": 350,
+                "symbol": symbol,
+                "interval": "D",
+                "timezone": "Asia/Tokyo",
+                "theme": "light",
+                "style": "1",
+                "locale": "ja",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "allow_symbol_change": true,
+                "container_id": "tradingview_chart"
+            });
+        }
+
+        // 初期化
+        renderLogs();
+        updateSummary();
+    </script>
+</body>
+</html>

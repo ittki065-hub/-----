@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>インベーダーゲーム</title>
+    <style>
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: #0f172a;
+            color: white;
+            margin: 0;
+            padding: 10px;
+            text-align: center;
+        }
+        header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        #score-board {
+            font-size: 14px;
+            color: #38bdf8;
+            margin-bottom: 8px;
+        }
+        canvas {
+            background-color: #000;
+            border: 2px solid #38bdf8;
+            border-radius: 6px;
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        /* スマホ用操作ボタン */
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            max-width: 360px;
+            margin: 12px auto 0;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #1e293b;
+            color: white;
+            border: 2px solid #38bdf8;
+            border-radius: 8px;
+            user-select: none;
+            cursor: pointer;
+        }
+        .btn:active {
+            background-color: #38bdf8;
+            color: #0f172a;
+        }
+        .btn-fire {
+            background-color: #ef4444;
+            border-color: #f87171;
+        }
+        .btn-fire:active {
+            background-color: #f87171;
+        }
+        .btn-reset {
+            margin-top: 12px;
+            background-color: #475569;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>👾 SPACE INVADERS</header>
+    <div id="score-board">SCORE: <span id="score">0</span></div>
+
+    <canvas id="gameCanvas" width="360" height="400"></canvas>
+
+    <!-- スマホ操作用ボタン -->
+    <div class="controls">
+        <div class="btn" id="btn-left">◀ 左</div>
+        <div class="btn btn-fire" id="btn-fire">🔥 撃つ</div>
+        <div class="btn" id="btn-right">右 ➔</div>
+    </div>
+
+    <button class="btn-reset" onclick="initGame()">リトライ</button>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let score = 0;
+        let gameOver = false;
+        let gameWin = false;
+
+        // プレイヤー自機
+        const player = {
+            x: canvas.width / 2 - 15,
+            y: canvas.height - 30,
+            width: 30,
+            height: 15,
+            speed: 4,
+            dx: 0
+        };
+
+        // 弾
+        let bullets = [];
+        const bulletSpeed = 6;
+
+        // 敵（インベーダー）
+        const invaderRows = 4;
+        const invaderCols = 6;
+        const invaderWidth = 25;
+        const invaderHeight = 18;
+        const invaderPadding = 15;
+        const invaderOffsetTop = 30;
+        const invaderOffsetLeft = 30;
+        let invaders = [];
+        let invaderDx = 1;
+        let invaderStepY = 10;
+
+        function createInvaders() {
+            invaders = [];
+            for (let r = 0; r < invaderRows; r++) {
+                invaders[r] = [];
+                for (let c = 0; c < invaderCols; c++) {
+                    invaders[r][c] = {
+                        x: c * (invaderWidth + invaderPadding) + invaderOffsetLeft,
+                        y: r * (invaderHeight + invaderPadding) + invaderOffsetTop,
+                        alive: true
+                    };
+                }
+            }
+        }
+
+        function initGame() {
+            score = 0;
+            gameOver = false;
+            gameWin = false;
+            player.x = canvas.width / 2 - 15;
+            bullets = [];
+            invaderDx = 1;
+            document.getElementById('score').innerText = score;
+            createInvaders();
+            requestAnimationFrame(update);
+        }
+
+        // キーボード操作（PC用）
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') player.dx = -player.speed;
+            if (e.key === 'ArrowRight' || e.key === 'd') player.dx = player.speed;
+            if (e.key === ' ' || e.key === 'ArrowUp') fireBullet();
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'a' || e.key === 'd') player.dx = 0;
+        });
+
+        // スマホ用ボタン操作
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnFire = document.getElementById('btn-fire');
+
+        btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); player.dx = -player.speed; });
+        btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); player.dx = 0; });
+        btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); player.dx = player.speed; });
+        btnRight.addEventListener('touchend', (e) => { e.preventDefault(); player.dx = 0; });
+        btnFire.addEventListener('touchstart', (e) => { e.preventDefault(); fireBullet(); });
+
+        // マウス操作補助（PCテスト用）
+        btnLeft.addEventListener('mousedown', () => player.dx = -player.speed);
+        btnLeft.addEventListener('mouseup', () => player.dx = 0);
+        btnRight.addEventListener('mousedown', () => player.dx = player.speed);
+        btnRight.addEventListener('mouseup', () => player.dx = 0);
+        btnFire.addEventListener('mousedown', () => fireBullet());
+
+        function fireBullet() {
+            if (gameOver || gameWin) return;
+            // 画面上に出せる弾の数を制限
+            if (bullets.length < 3) {
+                bullets.push({
+                    x: player.x + player.width / 2 - 2,
+                    y: player.y,
+                    width: 4,
+                    height: 10
+                });
+            }
+        }
+
+        function update() {
+            if (gameOver || gameWin) return;
+
+            // 自機の移動
+            player.x += player.dx;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // 弾の移動
+            bullets.forEach((b, index) => {
+                b.y -= bulletSpeed;
+                if (b.y < 0) bullets.splice(index, 1);
+            });
+
+            // 敵の移動と反転判定
+            let hitWall = false;
+            let aliveCount = 0;
+
+            for (let r = 0; r < invaderRows; r++) {
+                for (let c = 0; c < invaderCols; c++) {
+                    const inv = invaders[r][c];
+                    if (inv.alive) {
+                        aliveCount++;
+                        inv.x += invaderDx;
+                        if (inv.x + invaderWidth >= canvas.width || inv.x <= 0) {
+                            hitWall = true;
+                        }
+                        // 地上まで侵略されたらゲームオーバー
+                        if (inv.y + invaderHeight >= player.y) {
+                            gameOver = true;
+                        }
+                    }
+                }
+            }
+
+            if (aliveCount === 0) {
+                gameWin = true;
+            }
+
+            if (hitWall) {
+                invaderDx *= -1.1; // 端に着くたび少し加速
+                for (let r = 0; r < invaderRows; r++) {
+                    for (let c = 0; c < invaderCols; c++) {
+                        invaders[r][c].y += invaderStepY;
+                    }
+                }
+            }
+
+            // 命中判定（弾と敵）
+            bullets.forEach((b, bIndex) => {
+                for (let r = 0; r < invaderRows; r++) {
+                    for (let c = 0; c < invaderCols; c++) {
+                        const inv = invaders[r][c];
+                        if (inv.alive) {
+                            if (b.x < inv.x + invaderWidth &&
+                                b.x + b.width > inv.x &&
+                                b.y < inv.y + invaderHeight &&
+                                b.y + b.height > inv.y) {
+                                inv.alive = false;
+                                bullets.splice(bIndex, 1);
+                                score += 10;
+                                document.getElementById('score').innerText = score;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 自機描画
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // 砲身
+            ctx.fillRect(player.x + 12, player.y - 4, 6, 4);
+
+            // 弾描画
+            ctx.fillStyle = '#facc15';
+            bullets.forEach(b => {
+                ctx.fillRect(b.x, b.y, b.width, b.height);
+            });
+
+            // 敵描画
+            for (let r = 0; r < invaderRows; r++) {
+                for (let c = 0; c < invaderCols; c++) {
+                    const inv = invaders[r][c];
+                    if (inv.alive) {
+                        ctx.fillStyle = r === 0 ? '#f43f5e' : (r === 1 ? '#a855f7' : '#22c55e');
+                        ctx.fillRect(inv.x, inv.y, invaderWidth, invaderHeight);
+                    }
+                }
+            }
+
+            // 勝敗判定表示
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+            } else if (gameWin) {
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#22c55e';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('STAGE CLEAR! 🎉', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
